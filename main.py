@@ -35,49 +35,22 @@ class SeamCarver:
 
     def find_horizontal_seam(self):
         """
-        Sequence of indices for the horizontal seam.
+        Sequence of indices for the horizontal seam using vertical seam method.
         :return: A list of column indices.
         """
-        en_mat = self.energy_matrix()
-        # dp[i][j] = minimum energy of seam ending at (i, j)
-        dp = np.zeros((self.height(), self.width()), dtype=np.float32)
-
-        # make a matrix to contain the path. path[i][j] = r) means that the seam ending at (i, j) came from row r, column c-1
-        path = np.zeros((self.height(), self.width(), 2), dtype=np.int32)
-
-        # initialize the first column
-        dp[:, 0] = en_mat[:, 0]
-
-        # fill the dp table
-        for c in range(1, self.width()):
-            for r in range(self.height()):
-                up = r - 1 if r > 0 else r
-                down = r + 1 if r < self.height() - 1 else r
-
-                prevcost = min(dp[up][c - 1], dp[r][c - 1], dp[down][c - 1])
-                dp[r][c] = en_mat[r][c] + prevcost
-
-                if (prevcost == dp[up][c - 1]):
-                    path[r][c] = up
-                elif (prevcost == dp[r][c - 1]):
-                    path[r][c] = r
-                else:
-                    path[r][c] = down
+        # Transpose the image to use vertical seam finding
+        transposed_picture = self.picture.transpose(1, 0, 2)
         
-        # find the minimum cost in the last column
-        min_cost = min([dp[i][self.width() - 1] for i in range(self.height())])
-
-        # backtrack to find the seam
-        seam = []
+        # Temporarily replace the picture with transposed version
+        original_picture = self.picture
+        self.picture = transposed_picture
         
-        # check last column
-        min_index = np.argmin(dp[:, self.width() - 1])
-
-        seam.append(min_index)
-        for c in range(self.width() - 1, 0, -1):
-            min_index = path[min_index][c]
-            seam.append(min_index)
-        seam.reverse()
+        # Use existing vertical seam finding method
+        seam = self.find_vertical_seam()
+        
+        # Restore original picture
+        self.picture = original_picture
+        
         return seam
 
     def find_vertical_seam(self):
@@ -134,26 +107,47 @@ class SeamCarver:
         for i in range(self.width()):
             self.picture[seam[i]][i] = [0, 0, 255]
 
-    def remove_vertical_seam(self, seam):
-        """
+    """def remove_vertical_seam(self, seam):
+        
         Remove the vertical seam from the current picture.
         seam[i] is the column index to be removed at row i.
-        """
+        
         new_picture = np.zeros((self.height(), self.width() - 1, 3), np.uint8)
         for i in range(self.height()):
             new_picture[i] = np.delete(self.picture[i], seam[i], axis=0)
+        self.picture = new_picture"""
+    
+    def remove_vertical_seam(self, seam):
+        """
+        Remove the vertical seam from the current picture efficiently using NumPy.
+        seam[i] is the column index to be removed at row i.
+        """
+        # Create a mask to remove the specified seam pixels
+        mask = np.ones(self.picture.shape[:2], dtype=bool)
+        mask[np.arange(self.height()), seam] = False
+        
+        # Reshape and select pixels not in the seam
+        new_picture = self.picture[mask].reshape(self.height(), self.width() - 1, 3)
+        
         self.picture = new_picture
+        
 
     def remove_horizontal_seam(self, seam):
         """
-        Remove the horizontal seam from the current picture.
+        Remove the horizontal seam from the current picture using transposition.
         seam[i] is the row index to be removed at column i.
         """
-        new_picture = np.zeros((self.height() - 1, self.width(), 3), np.uint8)
-        for i in range(self.width()):
-            new_picture[:, i] = np.delete(self.picture[:, i], seam[i], axis=0)
-        self.picture = new_picture
-
+        # Transpose the image
+        transposed_picture = self.picture.transpose(1, 0, 2)
+        
+        # Set the picture to transposed version
+        self.picture = transposed_picture
+        
+        # Use vertical seam removal
+        self.remove_vertical_seam(seam)
+        
+        # Transpose back
+        self.picture = self.picture.transpose(1, 0, 2)
     
     def resize(self, new_width, new_height):
         """
@@ -167,9 +161,8 @@ class SeamCarver:
 
         while vertical_cuts_remaining >0:
             seam = self.find_vertical_seam()
-            print("time: ", time.time())
             vertical_cuts_remaining -= 1
-            print("Vertical cuts remaining: ", vertical_cuts_remaining)
+            print("time: ", time.time())
             self.remove_vertical_seam(seam)
         
         while horizontal_cuts_remaining > 0:
@@ -201,7 +194,7 @@ class SeamCarver:
 if __name__ == "__main__":
 
     # Read an image from local filesys.
-    file_path = "2peng.jpg"
+    file_path = "sampleakane.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
     # Create a seam carver object.
@@ -214,9 +207,10 @@ if __name__ == "__main__":
     print("Height: ", height)
 
     # resize to width=400, height=250
-    sc.resize(727, 727)
+    sc.resize(1000, 1500)
     arr = sc.energy_matrix()
     # print the energy matrix formatted
 
     new_file_path = "new_sample.png"
     cv2.imwrite(new_file_path, sc.picture)
+    print("time: ", time.time())
