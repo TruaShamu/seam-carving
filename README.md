@@ -11,6 +11,5 @@ https://en.wikipedia.org/wiki/Seam_carving
 - [ ] remove seam
 - [ ] resize based on desired width and height
 - [ ] seam insertion
-- [ ] content-aware seam carving
 - [ ] wrap it up in a flask app for demo purposes.
 - [ ] speed optimization (idk...)
