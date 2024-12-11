@@ -37,22 +37,13 @@ class SeamCarver:
     """
 
     def energy_function(self):
-        """
-        Compute the energy map of the image using the Sobel operator.
-        :param image: The input image as a numpy array.
-        :return: A 2D energy map.
-        """
-        # Convert the image to grayscale
         gray = cv2.cvtColor(self.picture, cv2.COLOR_BGR2GRAY)
         
-        # Compute the gradients in x and y directions
-        grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)  # Sobel filter in x-direction
-        grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)  # Sobel filter in y-direction
+        grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         
-        # Compute the energy as the magnitude of the gradient
         energy = np.sqrt(grad_x**2 + grad_y**2)
         
-        # Normalize the energy map for visualization (optional)
         energy = cv2.normalize(energy, None, 0, 255, cv2.NORM_MINMAX)
         
         return energy
