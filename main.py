@@ -57,7 +57,48 @@ class SeamCarver:
         Sequence of indices for the horizontal seam.
         :return: A list of column indices.
         """
+        en_mat = self.energy_matrix()
+        # dp[i][j] = minimum energy of seam ending at (i, j)
+        dp = [[0 for _ in range(self.width())] for _ in range(self.height())]
 
+        # make a matrix to contain the path. path[i][j] = r) means that the seam ending at (i, j) came from row r, column c-1
+        path = [[(0, 0) for _ in range(self.width())] for _ in range(self.height())]
+
+        # initialize the first column
+        for i in range(self.height()):
+            dp[i][0] = en_mat[i][0]
+
+        # fill the dp table
+        for c in range(1, self.width()):
+            for r in range(self.height()):
+                up = r - 1 if r > 0 else r
+                down = r + 1 if r < self.height() - 1 else r
+
+                prevcost = min(dp[up][c - 1], dp[r][c - 1], dp[down][c - 1])
+                dp[r][c] = en_mat[r][c] + prevcost
+
+                if (prevcost == dp[up][c - 1]):
+                    path[r][c] = up
+                elif (prevcost == dp[r][c - 1]):
+                    path[r][c] = r
+                else:
+                    path[r][c] = down
+        
+        # find the minimum cost in the last column
+        min_cost = min([dp[i][self.width() - 1] for i in range(self.height())])
+
+        # backtrack to find the seam
+        seam = []
+        
+        # check last column
+        min_index = [dp[i][self.width() - 1] for i in range(self.height())].index(min_cost)
+
+        seam.append(min_index)
+        for c in range(self.width() - 1, 0, -1):
+            min_index = path[min_index][c]
+            seam.append(min_index)
+        seam.reverse()
+        return seam
 
     def find_vertical_seam(self):
         """
@@ -104,14 +145,28 @@ class SeamCarver:
         seam.reverse()
         return seam
                 
-            
+    def draw_vertical_seam(self, seam):
+        """
+        Draw the vertical seam on the current picture.
+        :param seam: List of row indices representing the seam.
+        """
+        for i in range(self.height()):
+            self.picture[i][seam[i]] = [0, 0, 255]
+    
+    def draw_horizontal_seam(self, seam):
+        """
+        Draw the horizontal seam on the current picture.
+        :param seam: List of column indices representing the seam.
+        """
+        for i in range(self.width()):
+            self.picture[seam[i]][i] = [0, 0, 255]
 
     def remove_horizontal_seam(self, seam):
         """
         Remove horizontal seam from the current picture.
         :param seam: List of column indices representing the seam.
         """
-        raise NotImplementedError("Remove horizontal seam not implemented.")
+        
 
     def remove_vertical_seam(self, seam):
         """
@@ -162,6 +217,10 @@ if __name__ == "__main__":
     # Visualize the vertical seam on the image
     for i in range(height):
         picture[i][vertical_seam[i]] = [0, 0, 255]
+
+    horizontal_seam = sc.find_horizontal_seam()
+    for i in range(width):
+        picture[horizontal_seam[i]][i] = [0, 0, 255]
     
     # Save the image with the seam visualized.
     cv2.imwrite("sample_seam.jpg", picture)
