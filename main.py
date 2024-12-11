@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 class SeamCarver:
     def __init__(self, picture):
@@ -6,14 +7,8 @@ class SeamCarver:
         Create a seam carver object based on the given picture.
         :param picture: A 2D list or any image representation.
         """
-        self.picture = picture
+        self.picture = np.array(picture)
 
-    def picture(self):
-        """
-        Current picture.
-        :return: The current picture.
-        """
-        return self.picture
 
     def width(self):
         return self.picture.shape[1]
@@ -161,19 +156,56 @@ class SeamCarver:
         for i in range(self.width()):
             self.picture[seam[i]][i] = [0, 0, 255]
 
-    def remove_horizontal_seam(self, seam):
-        """
-        Remove horizontal seam from the current picture.
-        :param seam: List of column indices representing the seam.
-        """
-        
-
     def remove_vertical_seam(self, seam):
         """
-        Remove vertical seam from the current picture.
-        :param seam: List of row indices representing the seam.
+        Remove the vertical seam from the current picture.
+        seam[i] is the column index to be removed at row i.
         """
-        raise NotImplementedError("Remove vertical seam not implemented.")
+        new_picture = np.zeros((self.height(), self.width() - 1, 3), np.uint8)
+        for i in range(self.height()):
+            new_picture[i] = np.delete(self.picture[i], seam[i], axis=0)
+        self.picture = new_picture
+    def remove_horizontal_seam(self, seam):
+        """
+        Remove the horizontal seam from the current picture.
+        seam[i] is the row index to be removed at column i.
+        """
+        new_picture = np.zeros((self.height() - 1, self.width(), 3), np.uint8)
+        for i in range(self.width()):
+            new_picture[:, i] = np.delete(self.picture[:, i], seam[i], axis=0)
+        self.picture = new_picture
+
+    
+    def resize(self, new_width, new_height):
+        """
+        Resize the current picture to the given dimensions.
+        :param new_width: New width of the picture.
+        :param new_height: New height of the picture.
+        """
+        horizontal_cuts_remaining = self.height() - new_height
+        vertical_cuts_remaining = self.width() - new_width
+
+        while vertical_cuts_remaining >0:
+            seam = self.find_vertical_seam()
+            #self.draw_vertical_seam(seam)
+            # write image with vertical seam
+            #cv2.imwrite("vertical_seam.png", self.picture)
+
+            #self.remove_vertical_seam(seam)
+            vertical_cuts_remaining -= 1
+            print("Vertical cuts remaining: ", vertical_cuts_remaining)
+            self.remove_vertical_seam(seam)
+        
+        while horizontal_cuts_remaining > 0:
+            seam = self.find_horizontal_seam()
+            #self.remove_horizontal_seam(seam)
+            #self.draw_horizontal_seam(seam)
+            # write image with horizontal seam
+            #cv2.imwrite("horizontal_seam.png", self.picture)
+            horizontal_cuts_remaining -= 1
+            self.remove_horizontal_seam(seam)
+            print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
+
     
     def get_red(self, x, y):
         #print("red: ", self.picture[y][x][2])
@@ -204,24 +236,9 @@ if __name__ == "__main__":
     print("Width: ", width)
     print("Height: ", height)
 
-    # Get the energy matrix of the picture.
-    energy_matrix = sc.energy_matrix()
+    # resize to width=400, height=250
+    sc.resize(400, 200)
 
-    # Print the energy matrix
-    #for row in energy_matrix:
-    #    print(row)
-    
-    # Find the vertical seam.
-    vertical_seam = sc.find_vertical_seam()
-
-    # Visualize the vertical seam on the image
-    for i in range(height):
-        picture[i][vertical_seam[i]] = [0, 0, 255]
-
-    horizontal_seam = sc.find_horizontal_seam()
-    for i in range(width):
-        picture[horizontal_seam[i]][i] = [0, 0, 255]
-    
-    # Save the image with the seam visualized.
-    cv2.imwrite("sample_seam.jpg", picture)
-    
+    # Save the new image to local filesys.
+    new_file_path = "new_sample.png"
+    cv2.imwrite(new_file_path, sc.picture)
