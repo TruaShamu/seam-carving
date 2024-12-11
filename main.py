@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 
 class SeamCarver:
     def __init__(self, picture):
@@ -39,14 +40,13 @@ class SeamCarver:
         """
         en_mat = self.energy_matrix()
         # dp[i][j] = minimum energy of seam ending at (i, j)
-        dp = [[0 for _ in range(self.width())] for _ in range(self.height())]
+        dp = np.zeros((self.height(), self.width()), dtype=np.float32)
 
         # make a matrix to contain the path. path[i][j] = r) means that the seam ending at (i, j) came from row r, column c-1
-        path = [[(0, 0) for _ in range(self.width())] for _ in range(self.height())]
+        path = np.zeros((self.height(), self.width(), 2), dtype=np.int32)
 
         # initialize the first column
-        for i in range(self.height()):
-            dp[i][0] = en_mat[i][0]
+        dp[:, 0] = en_mat[:, 0]
 
         # fill the dp table
         for c in range(1, self.width()):
@@ -71,7 +71,7 @@ class SeamCarver:
         seam = []
         
         # check last column
-        min_index = [dp[i][self.width() - 1] for i in range(self.height())].index(min_cost)
+        min_index = np.argmin(dp[:, self.width() - 1])
 
         seam.append(min_index)
         for c in range(self.width() - 1, 0, -1):
@@ -81,50 +81,43 @@ class SeamCarver:
         return seam
 
     def find_vertical_seam(self):
-        """
-        Sequence of indices for the vertical seam.
-        :return: A list of row indices.
-        """
         en_mat = self.energy_matrix()
-        # dp[i][j] = minimum energy of seam ending at (i, j)
-        dp = [[0 for _ in range(self.width())] for _ in range(self.height())]
+        dp = np.zeros((self.height(), self.width()), dtype=np.float32)
+        path = np.zeros((self.height(), self.width()), dtype=np.int32)  # Only store column indices
 
-        # make a matrix to contain the path. path[i][j] = c) means that the seam ending at (i, j) came from row r-1, column c
-        path = [[(0, 0) for _ in range(self.width())] for _ in range(self.height())]
+        dp[0, :] = en_mat[0, :]
 
-        # initialize the top row
-        for i in range(self.width()):
-            dp[0][i] = en_mat[0][i]
-        
-        # fill the dp table
+        # Fill the dp table
         for r in range(1, self.height()):
-            for c in range(self.width()):
-                left = c - 1 if c > 0 else c
-                right = c + 1 if c < self.width() - 1 else c
+            left = np.roll(dp[r - 1], 1)
+            center = dp[r - 1]
+            right = np.roll(dp[r - 1], -1)
 
-                prevcost = min(dp[r - 1][left], dp[r - 1][c], dp[r - 1][right])
-                dp[r][c] = en_mat[r][c] + prevcost
+            left[0] = float('inf')
+            right[-1] = float('inf')
 
-                if (prevcost == dp[r - 1][left]):
-                    path[r][c] = left
-                elif (prevcost == dp[r - 1][c]):
-                    path[r][c] = c
-                else:
-                    path[r][c] = right
-        
-        # find the minimum cost in the last row
-        min_cost = min(dp[self.height() - 1])
+            prevcost = np.minimum(np.minimum(left, center), right)
+            dp[r] = en_mat[r] + prevcost
 
-        # backtrack to find the seam
-        seam = []
-        min_index = dp[self.height() - 1].index(min_cost)
-        seam.append(min_index)
+            path[r] = np.where(prevcost == left, np.arange(self.width()) - 1,
+                    np.where(prevcost == center, np.arange(self.width()),
+                            np.arange(self.width()) + 1))
+
+        # Find the minimum cost in the last row
+        min_index = np.argmin(dp[self.height() - 1])
+        seam = [min_index]
+
+        # Backtrack
         for r in range(self.height() - 1, 0, -1):
-            min_index = path[r][min_index]
+            min_index = path[r, min_index]
             seam.append(min_index)
+
         seam.reverse()
         return seam
-                
+
+
+
+                        
     def draw_vertical_seam(self, seam):
         """
         Draw the vertical seam on the current picture.
@@ -150,6 +143,7 @@ class SeamCarver:
         for i in range(self.height()):
             new_picture[i] = np.delete(self.picture[i], seam[i], axis=0)
         self.picture = new_picture
+
     def remove_horizontal_seam(self, seam):
         """
         Remove the horizontal seam from the current picture.
@@ -169,9 +163,11 @@ class SeamCarver:
         """
         horizontal_cuts_remaining = self.height() - new_height
         vertical_cuts_remaining = self.width() - new_width
+        print("time: ", time.time())
 
         while vertical_cuts_remaining >0:
             seam = self.find_vertical_seam()
+            print("time: ", time.time())
             vertical_cuts_remaining -= 1
             print("Vertical cuts remaining: ", vertical_cuts_remaining)
             self.remove_vertical_seam(seam)
@@ -180,6 +176,7 @@ class SeamCarver:
             seam = self.find_horizontal_seam()
             horizontal_cuts_remaining -= 1
             self.remove_horizontal_seam(seam)
+            print("time: ", time.time())
             print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
 
     
@@ -190,7 +187,6 @@ class SeamCarver:
     def get_blue(self, x, y):
         return self.picture[y][x][0]
     def energy_matrix(self):
-        #return [[self.energy(x, y) for x in range(self.width())] for y in range(self.height())]
         return self.energy()
         
 '''
@@ -218,20 +214,9 @@ if __name__ == "__main__":
     print("Height: ", height)
 
     # resize to width=400, height=250
-    sc.resize(800, 600)
+    sc.resize(727, 727)
     arr = sc.energy_matrix()
     # print the energy matrix formatted
-    
-    '''
-    for row in arr:
-        print(row)
 
-    # print the original rgb values of the image
-    for i in range(height):
-        for j in range(width):
-            print(f"({sc.get_red(j, i)}, {sc.get_green(j, i)}, {sc.get_blue(j, i)})", end=" ")
-        print()
-    # Save the new image to local filesys.
-    '''
     new_file_path = "new_sample.png"
     cv2.imwrite(new_file_path, sc.picture)
