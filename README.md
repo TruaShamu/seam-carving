@@ -3,6 +3,8 @@ this is so mid lmao
 
 https://en.wikipedia.org/wiki/Seam_carving
 
+![{A943C262-65CA-4744-B752-E8D0F0071507}](https://github.com/user-attachments/assets/a0471bd1-3043-4edf-b85d-728b4805768e)
+
 
 - [x] energy matrix
 - [x] seam finding (vertical)
