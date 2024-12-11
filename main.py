@@ -20,33 +20,42 @@ class SeamCarver:
         """
         return self.picture.shape[0]
 
+    # dual gradient energy function diy impl
+    """
     def energy(self, x, y):
-        """
-        Energy of the pixel at column x and row y.
-        :param x: Column index.
-        :param y: Row index.
-        :return: Energy as a float.
-        """
-        # This function would calculate the energy of a pixel based on some criteria.
-
-        # Border cases: Energy of pixels on the border would be 1000.
         if x == 0 or x == self.width() - 1 or y == 0 or y == self.height() - 1:
             return 1000.0
         
-        # dual-gradient energy function
+        neighbors = self.picture[y-1:y+2, x-1:x+2]
+        dx = np.diff(neighbors[:, :, :], axis=1)
+        dy = np.diff(neighbors[:, :, :], axis=0)
+        
+        x_gradient_sq = np.sum(dx[0, 0, :]**2)
+        y_gradient_sq = np.sum(dy[0, 0, :]**2)
+        
+        return np.sqrt(x_gradient_sq + y_gradient_sq)
+    """
 
-        rx = int(self.get_red(x + 1, y)) - int(self.get_red(x - 1, y))
-        gx = int(self.get_green(x + 1, y)) - int(self.get_green(x - 1, y))
-        bx = int(self.get_blue(x + 1, y)) - int(self.get_blue(x - 1, y))
-        x_gradient_sq = rx * rx + gx * gx + bx * bx
-
-        ry = int(self.get_red(x, y + 1)) - int(self.get_red(x, y - 1))
-        gy = int(self.get_green(x, y + 1)) - int(self.get_green(x, y - 1))
-        by = int(self.get_blue(x, y + 1)) - int(self.get_blue(x, y - 1))
-        y_gradient_sq = ry * ry + gy * gy + by * by
-
-        return (x_gradient_sq + y_gradient_sq) ** 0.5
-
+    def energy_function(self):
+        """
+        Compute the energy map of the image using the Sobel operator.
+        :param image: The input image as a numpy array.
+        :return: A 2D energy map.
+        """
+        # Convert the image to grayscale
+        gray = cv2.cvtColor(self.picture, cv2.COLOR_BGR2GRAY)
+        
+        # Compute the gradients in x and y directions
+        grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)  # Sobel filter in x-direction
+        grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)  # Sobel filter in y-direction
+        
+        # Compute the energy as the magnitude of the gradient
+        energy = np.sqrt(grad_x**2 + grad_y**2)
+        
+        # Normalize the energy map for visualization (optional)
+        energy = cv2.normalize(energy, None, 0, 255, cv2.NORM_MINMAX)
+        
+        return energy
     def find_horizontal_seam(self):
         """
         Sequence of indices for the horizontal seam.
@@ -187,44 +196,39 @@ class SeamCarver:
 
         while vertical_cuts_remaining >0:
             seam = self.find_vertical_seam()
-            #self.draw_vertical_seam(seam)
-            # write image with vertical seam
-            #cv2.imwrite("vertical_seam.png", self.picture)
-
-            #self.remove_vertical_seam(seam)
             vertical_cuts_remaining -= 1
             print("Vertical cuts remaining: ", vertical_cuts_remaining)
             self.remove_vertical_seam(seam)
         
         while horizontal_cuts_remaining > 0:
             seam = self.find_horizontal_seam()
-            #self.remove_horizontal_seam(seam)
-            #self.draw_horizontal_seam(seam)
-            # write image with horizontal seam
-            #cv2.imwrite("horizontal_seam.png", self.picture)
             horizontal_cuts_remaining -= 1
             self.remove_horizontal_seam(seam)
             print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
 
     
     def get_red(self, x, y):
-        #print("red: ", self.picture[y][x][2])
         return self.picture[y][x][2]
     def get_green(self, x, y):
-        #print("green: ", self.picture[y][x][1])
         return self.picture[y][x][1]
     def get_blue(self, x, y):
-        #print("blue: ", self.picture[y][x][0])
         return self.picture[y][x][0]
-    def energy_matrix(self):
+    '''def energy_matrix(self):
         return [[self.energy(x, y) for x in range(self.width())] for y in range(self.height())]
+    '''
+
+    def energy_matrix(self):
+        """
+        Compute the energy matrix using the Sobel operator.
+        :return: A 2D energy matrix.
+        """
+        return self.energy_function()
 
 # Unit testing (required)
 if __name__ == "__main__":
-    # Example usage (would require an actual implementation and picture input)
 
     # Read an image from local filesys.
-    file_path = "sample.png"
+    file_path = "2peng.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
     # Create a seam carver object.
@@ -237,7 +241,7 @@ if __name__ == "__main__":
     print("Height: ", height)
 
     # resize to width=400, height=250
-    sc.resize(400, 200)
+    sc.resize(950, 710)
 
     # Save the new image to local filesys.
     new_file_path = "new_sample.png"
