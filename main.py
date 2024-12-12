@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import time
 
+
 class SeamCarver:
     def __init__(self, picture):
         """
@@ -32,6 +33,7 @@ class SeamCarver:
         #add R, G and B values for each pixel, then add x- and y-shifted values
         de_gradient = np.sum(deltaX2, axis = 2) + np.sum(deltaY2, axis = 2)
         return np.sqrt(de_gradient)
+    
 
     def find_horizontal_seam(self):
         """
@@ -157,20 +159,21 @@ class SeamCarver:
         """
         horizontal_cuts_remaining = self.height() - new_height
         vertical_cuts_remaining = self.width() - new_width
-        print("time: ", time.time())
+        #print("time: ", time.time())
 
         while vertical_cuts_remaining >0:
             seam = self.find_vertical_seam()
             vertical_cuts_remaining -= 1
-            print("time: ", time.time())
+            #print("time: ", time.time())
+            #print("Vertical cuts remaining: ", vertical_cuts_remaining)
             self.remove_vertical_seam(seam)
         
         while horizontal_cuts_remaining > 0:
             seam = self.find_horizontal_seam()
             horizontal_cuts_remaining -= 1
             self.remove_horizontal_seam(seam)
-            print("time: ", time.time())
-            print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
+            #print("time: ", time.time())
+            #print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
 
     
     def get_red(self, x, y):
@@ -182,19 +185,31 @@ class SeamCarver:
     def energy_matrix(self):
         return self.energy()
         
-'''
-    def energy_matrix(self):
-        """
-        Compute the energy matrix using the Sobel operator.
-        :return: A 2D energy matrix.
-        """
-        return self.energy_function()
-'''
+
+# Visualize the energy matrix using opencv
+def visualize_energy(energy_matrix):
+    """
+    Visualize the energy matrix using OpenCV.
+    :param energy_matrix: A 2D list representing the energy matrix.
+    """
+    # Normalize the energy matrix
+    energy_matrix = (energy_matrix - np.min(energy_matrix)) / (np.max(energy_matrix) - np.min(energy_matrix)) * 255
+    energy_matrix = energy_matrix.astype(np.uint8)
+    
+    # Create a grayscale image
+    energy_image = cv2.cvtColor(energy_matrix, cv2.COLOR_GRAY2BGR)
+    
+    # Display the image
+    cv2.imshow("Energy Matrix", energy_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 # Unit testing (required)
 if __name__ == "__main__":
+    print("time: ", time.time())
 
     # Read an image from local filesys.
-    file_path = "sampleakane.jpg"
+    file_path = "surfer.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
     # Create a seam carver object.
@@ -207,10 +222,13 @@ if __name__ == "__main__":
     print("Height: ", height)
 
     # resize to width=400, height=250
-    sc.resize(1000, 1500)
-    arr = sc.energy_matrix()
+    sc.resize(1500, 1079)
+    #arr = sc.energy_matrix()
     # print the energy matrix formatted
 
     new_file_path = "new_sample.png"
     cv2.imwrite(new_file_path, sc.picture)
     print("time: ", time.time())
+
+    # Visualize the energy matrix
+    visualize_energy(sc.energy_matrix())
