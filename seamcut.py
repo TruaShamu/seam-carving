@@ -35,7 +35,7 @@ class SeamCarver:
         return np.sqrt(de_gradient)
     
 
-    def find_horizontal_seam(self):
+    def find_horizontal_seam(self, en_mat = None):
         """
         Sequence of indices for the horizontal seam using vertical seam method.
         :return: A list of column indices.
@@ -48,15 +48,15 @@ class SeamCarver:
         self.picture = transposed_picture
         
         # Use existing vertical seam finding method
-        seam = self.find_vertical_seam()
+        seam = self.find_vertical_seam(en_mat)
         
         # Restore original picture
         self.picture = original_picture
         
         return seam
 
-    def find_vertical_seam(self):
-        en_mat = self.energy_matrix()
+    def find_vertical_seam(self, en_mat = None):
+        #en_mat = self.energy_matrix()
         dp = np.zeros((self.height(), self.width()), dtype=np.float32)
         path = np.zeros((self.height(), self.width()), dtype=np.int32)  # Only store column indices
 
@@ -151,29 +151,37 @@ class SeamCarver:
         # Transpose back
         self.picture = self.picture.transpose(1, 0, 2)
     
-    def resize(self, new_width, new_height):
+    def resize(self, new_width, new_height, maskRemoved=None):
         """
         Resize the current picture to the given dimensions.
         :param new_width: New width of the picture.
         :param new_height: New height of the picture.
+        :param maskRemoved: A 2D list representing the mask to remove (optional)
         """
         horizontal_cuts_remaining = self.height() - new_height
         vertical_cuts_remaining = self.width() - new_width
         #print("time: ", time.time())
 
         while vertical_cuts_remaining >0:
-            seam = self.find_vertical_seam()
+            en_mat = self.energy_matrix()
+
+            if (maskRemoved is not None):
+                en_mat[maskRemoved == 1] = 0
+            seam = self.find_vertical_seam(en_mat)
             vertical_cuts_remaining -= 1
             #print("time: ", time.time())
-            #print("Vertical cuts remaining: ", vertical_cuts_remaining)
+            print("Vertical cuts remaining: ", vertical_cuts_remaining)
             self.remove_vertical_seam(seam)
         
         while horizontal_cuts_remaining > 0:
-            seam = self.find_horizontal_seam()
+            en_mat = self.energy_matrix()
+            if (maskRemoved is not None):
+                en_mat[maskRemoved == 1] = 0
+            seam = self.find_horizontal_seam(en_mat)
             horizontal_cuts_remaining -= 1
             self.remove_horizontal_seam(seam)
             #print("time: ", time.time())
-            #print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
+            print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
 
     
     def get_red(self, x, y):
@@ -209,8 +217,16 @@ if __name__ == "__main__":
     print("time: ", time.time())
 
     # Read an image from local filesys.
+    mask = np.load("surfer.npy")
     file_path = "surfer.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
+
+    # to double check, let's overlay the mask on the image
+    mask = mask.astype(bool)
+    #picture[mask == 1] = [0, 0, 255]
+    #cv2.imshow("Masked Image", picture)
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
 
     # Create a seam carver object.
     sc = SeamCarver(picture)
@@ -222,13 +238,27 @@ if __name__ == "__main__":
     print("Height: ", height)
 
     # resize to width=400, height=250
-    sc.resize(1500, 1079)
+    #sc.resize(1800, 1079)
     #arr = sc.energy_matrix()
     # print the energy matrix formatted
 
-    new_file_path = "new_sample.png"
-    cv2.imwrite(new_file_path, sc.picture)
-    print("time: ", time.time())
+    #new_file_path = "new_sample.png"
+    #cv2.imwrite(new_file_path, sc.picture)
+    #print("time: ", time.time())
 
     # Visualize the energy matrix
-    visualize_energy(sc.energy_matrix())
+    en_mat = sc.energy_matrix()
+
+    # fill 0s in the mask
+    en_mat[mask == 1] = 0
+    visualize_energy(en_mat)
+
+    # Find and draw the vertical seam
+    seam = sc.find_vertical_seam(en_mat)
+    sc.draw_vertical_seam(seam)
+
+    # render the image
+    cv2.imshow("Vertical Seam", sc.picture)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
