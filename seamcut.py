@@ -119,34 +119,6 @@ class SeamCarver:
             picture[seam[i]][i] = [0, 0, 255]
         return picture
 
-    """def remove_vertical_seam(self, seam):
-        
-        Remove the vertical seam from the current picture.
-        seam[i] is the column index to be removed at row i.
-        
-        new_picture = np.zeros((self.height(), self.width() - 1, 3), np.uint8)
-        for i in range(self.height()):
-            new_picture[i] = np.delete(self.picture[i], seam[i], axis=0)
-        self.picture = new_picture"""
-    
-    '''def remove_vertical_seam(self, input_picture, seam):
-        """
-        Remove the vertical seam from the current picture efficiently using NumPy.
-        seam[i] is the column index to be removed at row i.
-        """
-
-        height, width, _ = input_picture.shape
-        # Create a mask to remove the specified seam pixels
-        mask = np.ones(input_picture.shape[:2], dtype=bool)
-        #mask[np.arange(self.height()), seam] = False
-        mask[np.arange(height), seam] = False
-        # Reshape and select pixels not in the seam
-        #new_picture = self.picture[mask].reshape(self.height(), self.width() - 1, 3)
-        new_picture = input_picture[mask].reshape(height, width - 1, 3)
-        return new_picture
-        #self.picture = new_picture
-        '''
-    
     def remove_vertical_seam(self, input_picture, seam):
         # Get height and width
         height, width = input_picture.shape[:2]
@@ -268,29 +240,12 @@ if __name__ == "__main__":
 
     # Read an image from local filesys.
     mask = np.load("surfer.npy")
+    mask = mask.astype(bool)
     file_path = "surfer.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
-    # to double check, let's overlay the mask on the image
-    mask = mask.astype(bool)
-    #picture[mask == 1] = [0, 0, 255]
-    #cv2.imshow("Masked Image", picture)
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
-
     # Create a seam carver object.
     sc = SeamCarver(picture)
-
-    # Get the width and height of the picture.
-    width = sc.width()
-    height = sc.height()
-    print("Width: ", width)
-    print("Height: ", height)
-
-    # print the size of the mask
-    print("mask width: ", mask.shape[1])
-    print("mask height: ", mask.shape[0])
-
 
     # resize to width=400, height=250
     sc.resize(1400, 1079, mask)
@@ -299,31 +254,4 @@ if __name__ == "__main__":
 
     new_file_path = "new_sample.png"
     cv2.imwrite(new_file_path, sc.picture)
-    print("time: ", time.time())
-    print("we done")
-
-    # Visualize the energy matrix
-    en_mat = sc.energy_matrix()
-
-    # fill 0s in the mask
-    en_mat[mask == 1] = 0
-    visualize_energy(en_mat)
-
-    # Find and draw the vertical seam
-    #seam = sc.find_vertical_seam(en_mat)
-    #sc.draw_vertical_seam(seam)
-
-    seam = sc.find_horizontal_seam()
-    sc.draw_horizontal_seam(seam)
-
-    # draw the mask on the picture in green
-    sc.picture[mask == 1] = [0, 255, 0]
-
-    # try to remove the vertical seam from the mask
-    mask = sc.remove_horizontal_seam(mask, seam)
-
-    # render the image
-    cv2.imshow("Vertical Seam", sc.picture)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
