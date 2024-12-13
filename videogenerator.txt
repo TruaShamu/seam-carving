@@ -1,0 +1,1 @@
+ffmpeg -framerate 30 -i %d.png -vf "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease,pad=1280:720:0:(720-ih)/2" -pix_fmt yuv420p output.mp4

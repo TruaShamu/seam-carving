@@ -23,7 +23,7 @@ class SeamCarver:
         """
         return self.picture.shape[0]
 
-    def energy(self, maskRemoved=None):
+    def energy(self, maskRemoved=None, protectionmask=None):
         # same as prev but optimize using numpy
         #convert from uint8 to int64 to prevent overflow problems
         arr = np.array(self.picture, dtype = int)
@@ -35,10 +35,13 @@ class SeamCarver:
         de_gradient = np.sum(deltaX2, axis = 2) + np.sum(deltaY2, axis = 2)
         if (maskRemoved is not None):
             de_gradient[maskRemoved == 1] = 0
+        # just set the energy of the mask to a very high value
+        if (protectionmask is not None):
+            de_gradient[protectionmask == 1] = 1e9
         return np.sqrt(de_gradient)
     
 
-    def find_horizontal_seam(self, maskRemoved=None):
+    def find_horizontal_seam(self, maskRemoved=None, protectionmask=None):
         """
         Sequence of indices for the horizontal seam using vertical seam method.
         :return: A list of column indices.
@@ -57,15 +60,17 @@ class SeamCarver:
         # if theres a 2d mask, we have to transpose it as well
         if (maskRemoved is not None):
             maskRemoved = maskRemoved.transpose()
-        seam = self.find_vertical_seam(maskRemoved)
+        if (protectionmask is not None):
+            protectionmask = protectionmask.transpose()
+        seam = self.find_vertical_seam(maskRemoved, protectionmask)
         
         # Restore original picture
         self.picture = original_picture
         
         return seam
 
-    def find_vertical_seam(self, maskRemoved=None):
-        en_mat = self.energy_matrix(maskRemoved)
+    def find_vertical_seam(self, maskRemoved=None, protectionmask=None):
+        en_mat = self.energy_matrix(maskRemoved, protectionmask)
         dp = np.zeros((self.height(), self.width()), dtype=np.float32)
         path = np.zeros((self.height(), self.width()), dtype=np.int32)  # Only store column indices
 
@@ -163,7 +168,7 @@ class SeamCarver:
         return np.transpose(new_picture, (1, 0, 2)) if len(input_picture.shape) == 3 else np.transpose(new_picture)
 
     
-    def resize(self, new_width, new_height, maskRemoved=None):
+    def resize(self, new_width, new_height, maskRemoved=None, protectionmask=None):
         """
         Resize the current picture to the given dimensions.
         :param new_width: New width of the picture.
@@ -178,7 +183,7 @@ class SeamCarver:
         while vertical_cuts_remaining >0:
             #if (maskRemoved is not None):
             #    en_mat[maskRemoved == 1] = 0
-            seam = self.find_vertical_seam(maskRemoved)
+            seam = self.find_vertical_seam(maskRemoved, protectionmask)
             # draw the seam in red on a copy of the picture
             new_picture = self.draw_vertical_seam(self.picture, seam)
             
@@ -187,6 +192,8 @@ class SeamCarver:
             count += 1
             if (maskRemoved is not None):
                 maskRemoved = self.remove_vertical_seam(maskRemoved, seam)
+            if (protectionmask is not None):
+                protectionmask = self.remove_vertical_seam(protectionmask, seam)
             vertical_cuts_remaining -= 1
             #print("time: ", time.time())
             print("Vertical cuts remaining: ", vertical_cuts_remaining)
@@ -201,6 +208,8 @@ class SeamCarver:
             # we also have to remove the seam from the mask
             if (maskRemoved is not None):
                 maskRemoved = self.remove_horizontal_seam(maskRemoved, seam)
+            if (protectionmask is not None):
+                protectionmask = self.remove_horizontal_seam(protectionmask, seam)
             #print("time: ", time.time())
             print("Horizontal cuts remaining: ", horizontal_cuts_remaining)
 
@@ -211,8 +220,8 @@ class SeamCarver:
         return self.picture[y][x][1]
     def get_blue(self, x, y):
         return self.picture[y][x][0]
-    def energy_matrix(self, maskRemoved=None):
-        return self.energy(maskRemoved)
+    def energy_matrix(self, maskRemoved=None, protectionmask=None):
+        return self.energy(maskRemoved, protectionmask)
         
 
 # Visualize the energy matrix using opencv
@@ -237,18 +246,30 @@ def visualize_energy(energy_matrix):
 if __name__ == "__main__":
     count = 0
     print("time: ", time.time())
+    
 
-    # Read an image from local filesys.
-    mask = np.load("surfer.npy")
-    mask = mask.astype(bool)
-    file_path = "surfer.jpg"
+    # deletion mask.
+    deletemask = np.load("deletepengin.npy")
+    deletemask = deletemask.astype(bool)
+
+    # protection mask
+    protectionmask = np.load("protectpengin.npy")
+    protectionmask = protectionmask.astype(bool)
+
+
+    file_path = "2peng.jpg"
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
     # Create a seam carver object.
     sc = SeamCarver(picture)
 
+    width= sc.width()
+    height = sc.height()
+    print("Width: ", width)
+    print("Height: ", height)
+
     # resize to width=400, height=250
-    sc.resize(1400, 1079, mask)
+    sc.resize(500, 727, deletemask, protectionmask)
     arr = sc.energy_matrix()
     # print the energy matrix formatted
 
