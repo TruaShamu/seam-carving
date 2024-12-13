@@ -10,6 +10,9 @@ ok actually this is kind of cool
 results of running this on broadway tower
 ![download (4)](https://github.com/user-attachments/assets/00ee6a46-7a5c-4927-b0f6-d6f9bca5d842)
 
+watch my yt video on object removal:
+[https://studio.youtube.com/video/UZG52d_SKC0/edit](https://www.youtube.com/watch?v=UZG52d_SKC0)
+
 - [x] energy matrix
 - [x] seam finding (vertical)
 - [x] seam finding (horizontal)
