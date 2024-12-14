@@ -103,7 +103,121 @@ class SeamCarver:
 
         seam.reverse()
         return seam
-                        
+    
+    # Assume no additional masking arguments for now
+    def find_multiple_vertical_seams(self, num_seams):
+        """
+        Find multiple seams in the current picture.
+        :param num_seams: Number of seams to find.
+        :return: A list of lists (each list is a seam).
+        """
+        # Basically just do the same dp, but get the top num_seams seams with minimum energy, and backtrack for each seam to get list of column indices for each seam
+        en_mat = self.energy_matrix()
+        dp = np.zeros((self.height(), self.width()), dtype=np.float32)
+        path = np.zeros((self.height(), self.width()), dtype=np.int32)  # Only store column indices
+
+        dp[0, :] = en_mat[0, :]
+
+        # Fill the dp table
+        for r in range(1, self.height()):
+            left = np.roll(dp[r - 1], 1)
+            center = dp[r - 1]
+            right = np.roll(dp[r - 1], -1)
+
+            left[0] = float('inf')
+            right[-1] = float('inf')
+
+            prevcost = np.minimum(np.minimum(left, center), right)
+            dp[r] = en_mat[r] + prevcost
+
+            path[r] = np.where(prevcost == left, np.arange(self.width()) - 1,
+                    np.where(prevcost == center, np.arange(self.width()),
+                            np.arange(self.width()) + 1))
+
+        # check the last row and get the minimum num_seams indices
+        min_indices = np.argpartition(dp[self.height() - 1], num_seams)[:num_seams]
+        #min_index = np.argmin(dp[self.height() - 1])
+        #seam = [min_index]
+
+        # Backtrack for each seam
+        seams = []
+        for min_index in min_indices:
+            seam = [min_index]
+            for r in range(self.height() - 1, 0, -1):
+                min_index = path[r, min_index]
+                seam.append(min_index)
+
+            seam.reverse()
+            seams.append(seam)
+        return seams
+    
+    def insert_vertical_seams(self, seams):
+        """
+        Insert multiple vertical seams to the current picture.
+        :param seams: A list of lists (each list is a seam).
+        """
+        for i in range(len(seams)):
+            seam = seams[i]
+            # get the pixel values of the inserted seam
+            inserted_seam_vals = self.vert_inserted_seam_vals(seam)
+            # modify self.picture so the seam is duplicated (pixels are inserted at column seam[i]+1 for each row i with the pixel values in inserted_seam_vals)
+            self.picture = np.insert(self.picture, seam, inserted_seam_vals, axis=1)
+            # the width is increased by 1, so need to add 1 to all the later seams (i.e seams[i+1] to seams[n])
+            for j in range(i+1, len(seams)):
+                seams[j] = seams[j] + 1
+    def vert_inserted_seam_vals(self, seam):
+        """
+        Given a vertical seam (list of column indices), return the pixel values (RGB) of the inserted seam.
+        """
+        height, width = self.picture.shape[:2]
+        inserted_seam_vals = np.zeros((height, 3), dtype=np.uint8)
+        for i in range(height):
+            if seam[i] == 0:
+                # average itself and the right pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, :2], axis=0)
+            elif seam[i] == width - 1:
+                # average itself and the left pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, -2:], axis=0)
+            else:
+                # average itself, left and right pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, seam[i]-1:seam[i]+2], axis=0)
+        return inserted_seam_vals
+    
+    def resize_larger(self, new_width, new_height, seam_batch_size):
+        """
+        Resize the current picture to the given dimensions.
+        :param new_width: New width of the picture.
+        :param new_height: New height of the picture.
+        :param seam_batch_size: Number of seams to add/remove in each iteration.
+        """
+        # Calculate the number of seams to add/remove
+        vertical_seams = new_width - self.width()
+        horizontal_seams = new_height - self.height()
+        
+        # Add/remove vertical seams
+        while vertical_seams > 0:
+            # Find multiple vertical seams
+            seams = self.find_multiple_vertical_seams(seam_batch_size)
+            # Insert the seams
+            self.insert_vertical_seams(seams)
+            vertical_seams -= seam_batch_size
+        
+        # Add/remove horizontal seams
+        while horizontal_seams > 0:
+            # Find multiple horizontal seams
+            seams = self.find_multiple_horizontal_seams(seam_batch_size)
+            horizontal_seams -= seam_batch_size
+
+    def find_multiple_horizontal_seams(self, num_seams):
+        # just transpose the picture and call find_multiple_vertical_seams
+        transposed_picture = self.picture.transpose(1, 0, 2)
+        self.picture = transposed_picture
+        seams = self.find_multiple_vertical_seams(transposed_picture, num_seams)
+        # insert the seams
+        self.insert_vertical_seams(seams)
+        # restore the original picture by transposing it back
+        self.picture = self.picture.transpose(1, 0, 2)
+    
     def draw_vertical_seam(self, picture, seam):
         """
         Draw the vertical seam on the current picture.
