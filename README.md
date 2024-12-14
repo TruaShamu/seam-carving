@@ -20,7 +20,7 @@ watch my yt video on object removal:
 - [x] remove seam
 - [x] resize based on desired width and height
 - [x] object removal
-- [ ] object protection
+- [x] object protection
 - [ ] seam insertion
 - [ ] video processing
 - [ ] gui app for demo purposes.
@@ -28,3 +28,4 @@ watch my yt video on object removal:
 - [ ] separate rendering and logic portions for cleanness
 - [ ] speed optimization (partially done)
 - [ ] performance evaluation
+- [ ] 100% guaranteed object removal (i.e. minimal amount of seams to remove so the mask is completely removed)
