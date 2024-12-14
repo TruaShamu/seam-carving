@@ -152,6 +152,7 @@ class SeamCarver:
         return seams
     
     def insert_vertical_seams(self, seams):
+        global count
         """
         Insert multiple vertical seams to the current picture.
         :param seams: A list of lists (each list is a seam).
@@ -160,11 +161,33 @@ class SeamCarver:
             seam = seams[i]
             # get the pixel values of the inserted seam
             inserted_seam_vals = self.vert_inserted_seam_vals(seam)
-            # modify self.picture so the seam is duplicated (pixels are inserted at column seam[i]+1 for each row i with the pixel values in inserted_seam_vals)
-            self.picture = np.insert(self.picture, seam, inserted_seam_vals, axis=1)
-            # the width is increased by 1, so need to add 1 to all the later seams (i.e seams[i+1] to seams[n])
+            
+            # reshape the seam values to a column
+            inserted_seam_vals = inserted_seam_vals.reshape((self.height(), 1, 3))
+            
+            # write the image of the seam being inserted
+            #cv2.imwrite(f"{count}.png", inserted_seam_vals)
+            
+            # make the new image (rows, columns + 1, 3)
+            new_picture = np.zeros((self.height(), self.width() + 1, 3), dtype=np.uint8)
+            for row in range(self.height()):
+                for col in range(seam[row] + 1):
+                    new_picture[row, col] = self.picture[row, col]
+
+            for row in range(self.height()):
+                new_picture[row, seam[row]+1] = inserted_seam_vals[row]
+            
+            for row in range(self.height()):
+                for col in range(seam[row] + 1, self.width()):
+                    new_picture[row, col+1] = self.picture[row, col]
+            
+            count += 1
+            
             for j in range(i+1, len(seams)):
-                seams[j] = seams[j] + 1
+                seams[j] = [x + 1 for x in seams[j]]
+            
+            self.picture = new_picture
+
     def vert_inserted_seam_vals(self, seam):
         """
         Given a vertical seam (list of column indices), return the pixel values (RGB) of the inserted seam.
@@ -358,7 +381,9 @@ def visualize_energy(energy_matrix):
 
 # Unit testing (required)
 if __name__ == "__main__":
+    
     count = 0
+    
     print("time: ", time.time())
     
 
@@ -382,10 +407,11 @@ if __name__ == "__main__":
     print("Width: ", width)
     print("Height: ", height)
 
-    # resize to width=400, height=250
-    sc.resize(500, 727, deletemask, protectionmask)
-    arr = sc.energy_matrix()
-    # print the energy matrix formatted
+    seams = sc.find_multiple_vertical_seams(100)
+
+    print("Seams: ", seams[0])
+
+    sc.insert_vertical_seams(seams)
 
     new_file_path = "new_sample.png"
     cv2.imwrite(new_file_path, sc.picture)
