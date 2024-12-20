@@ -104,133 +104,41 @@ class SeamCarver:
         seam.reverse()
         return seam
     
-    # Assume no additional masking arguments for now
-    def find_multiple_vertical_seams(self, num_seams):
-        """
-        Find multiple seams in the current picture.
-        :param num_seams: Number of seams to find.
-        :return: A list of lists (each list is a seam).
-        """
-        # Basically just do the same dp, but get the top num_seams seams with minimum energy, and backtrack for each seam to get list of column indices for each seam
-        en_mat = self.energy_matrix()
-        dp = np.zeros((self.height(), self.width()), dtype=np.float32)
-        path = np.zeros((self.height(), self.width()), dtype=np.int32)  # Only store column indices
+    def insert_vertical_seams(self, n):
+            # do n operations of finding the seam and removing it on a copy of the picture
+            dupSeamCarver = SeamCarver(self.picture)
+            seams = [] # store all the removal candidates for later use.
+            for i in range(n):
+                seam = dupSeamCarver.find_vertical_seam()
+                seams.append(seam)
+                dupSeamCarver.picture = dupSeamCarver.remove_vertical_seam(dupSeamCarver.picture, seam)
 
-        dp[0, :] = en_mat[0, :]
+            # now we have all the seams, we can insert them back to the original picture
+            for seam in seams:
+                # get the pixel values of the seam
+                self.picture = self.insert_single_vertical_seam(seam)
+                print("new picture shape: ", self.picture.shape)
 
-        # Fill the dp table
-        for r in range(1, self.height()):
-            left = np.roll(dp[r - 1], 1)
-            center = dp[r - 1]
-            right = np.roll(dp[r - 1], -1)
+            return self.picture
 
-            left[0] = float('inf')
-            right[-1] = float('inf')
+    def insert_single_vertical_seam(self, seam):
+        # expand size by 1 col
+        print("input picture shape: ", self.picture.shape)
+        new_picture = np.zeros((self.height(), self.width() + 1, 3), dtype=np.uint8)
+        print("new picture shape: ", new_picture.shape)
+        seam_vals = self.vert_inserted_seam_vals(seam)
 
-            prevcost = np.minimum(np.minimum(left, center), right)
-            dp[r] = en_mat[r] + prevcost
+        for row in range(self.height()):
+            seam_pos = seam[row]
+            for col in range(seam_pos):
+                new_picture[row, col] = self.picture[row, col]
+            new_picture[row, seam_pos] = seam_vals[row]
+            for col in range(seam_pos, self.width()):
+                new_picture[row, col + 1] = self.picture[row, col]
+        print("returning new picture shape: ", new_picture.shape)
+        return new_picture
 
-            path[r] = np.where(prevcost == left, np.arange(self.width()) - 1,
-                    np.where(prevcost == center, np.arange(self.width()),
-                            np.arange(self.width()) + 1))
-
-        # check the last row and get the minimum num_seams indices
-        min_indices = np.argpartition(dp[self.height() - 1], num_seams)[:num_seams]
-        #min_index = np.argmin(dp[self.height() - 1])
-        #seam = [min_index]
-
-        # Backtrack for each seam
-        seams = []
-        for min_index in min_indices:
-            seam = [min_index]
-            for r in range(self.height() - 1, 0, -1):
-                min_index = path[r, min_index]
-                seam.append(min_index)
-
-            seam.reverse()
-            seams.append(seam)
-        return seams
-    
-    def insert_vertical_seams(self, seams):
-        global count
-        """
-        Insert multiple vertical seams to the current picture.
-        :param seams: A list of lists (each list is a seam).
-        """
-        for i in range(len(seams)):
-            seam = seams[i]
-            # get the pixel values of the inserted seam
-            inserted_seam_vals = self.vert_inserted_seam_vals(seam)
-            
-            # reshape the seam values to a column
-            inserted_seam_vals = inserted_seam_vals.reshape((self.height(), 1, 3))
-            
-            # write the image of the seam being inserted
-            #cv2.imwrite(f"{count}.png", inserted_seam_vals)
-            
-            # make the new image (rows, columns + 1, 3)
-            new_picture = np.zeros((self.height(), self.width() + 1, 3), dtype=np.uint8)
-            for row in range(self.height()):
-                for col in range(seam[row] + 1):
-                    new_picture[row, col] = self.picture[row, col]
-
-            for row in range(self.height()):
-                new_picture[row, seam[row]+1] = inserted_seam_vals[row]
-            
-            for row in range(self.height()):
-                for col in range(seam[row] + 1, self.width()):
-                    new_picture[row, col+1] = self.picture[row, col]
-            
-            count += 1
-            
-            for j in range(i+1, len(seams)):
-                seams[j] = [x + 1 for x in seams[j]]
-            
-            self.picture = new_picture
-
-    def vert_inserted_seam_vals(self, seam):
-        """
-        Given a vertical seam (list of column indices), return the pixel values (RGB) of the inserted seam.
-        """
-        height, width = self.picture.shape[:2]
-        inserted_seam_vals = np.zeros((height, 3), dtype=np.uint8)
-        for i in range(height):
-            if seam[i] == 0:
-                # average itself and the right pixel
-                inserted_seam_vals[i] = np.mean(self.picture[i, :2], axis=0)
-            elif seam[i] == width - 1:
-                # average itself and the left pixel
-                inserted_seam_vals[i] = np.mean(self.picture[i, -2:], axis=0)
-            else:
-                # average itself, left and right pixel
-                inserted_seam_vals[i] = np.mean(self.picture[i, seam[i]-1:seam[i]+2], axis=0)
-        return inserted_seam_vals
-    
-    def resize_larger(self, new_width, new_height, seam_batch_size):
-        """
-        Resize the current picture to the given dimensions.
-        :param new_width: New width of the picture.
-        :param new_height: New height of the picture.
-        :param seam_batch_size: Number of seams to add/remove in each iteration.
-        """
-        # Calculate the number of seams to add/remove
-        vertical_seams = new_width - self.width()
-        horizontal_seams = new_height - self.height()
-        
-        # Add/remove vertical seams
-        while vertical_seams > 0:
-            # Find multiple vertical seams
-            seams = self.find_multiple_vertical_seams(seam_batch_size)
-            # Insert the seams
-            self.insert_vertical_seams(seams)
-            vertical_seams -= seam_batch_size
-        
-        # Add/remove horizontal seams
-        while horizontal_seams > 0:
-            # Find multiple horizontal seams
-            seams = self.find_multiple_horizontal_seams(seam_batch_size)
-            horizontal_seams -= seam_batch_size
-
+    '''
     def find_multiple_horizontal_seams(self, num_seams):
         # just transpose the picture and call find_multiple_vertical_seams
         transposed_picture = self.picture.transpose(1, 0, 2)
@@ -239,8 +147,8 @@ class SeamCarver:
         # insert the seams
         self.insert_vertical_seams(seams)
         # restore the original picture by transposing it back
-        self.picture = self.picture.transpose(1, 0, 2)
-    
+        self.picture = self.picture.transpose(1, 0, 2) ''' 
+       
     def draw_vertical_seam(self, picture, seam):
         """
         Draw the vertical seam on the current picture.
@@ -361,23 +269,42 @@ class SeamCarver:
         return self.energy(maskRemoved, protectionmask)
         
 
-# Visualize the energy matrix using opencv
-def visualize_energy(energy_matrix):
-    """
-    Visualize the energy matrix using OpenCV.
-    :param energy_matrix: A 2D list representing the energy matrix.
-    """
-    # Normalize the energy matrix
-    energy_matrix = (energy_matrix - np.min(energy_matrix)) / (np.max(energy_matrix) - np.min(energy_matrix)) * 255
-    energy_matrix = energy_matrix.astype(np.uint8)
-    
-    # Create a grayscale image
-    energy_image = cv2.cvtColor(energy_matrix, cv2.COLOR_GRAY2BGR)
-    
-    # Display the image
-    cv2.imshow("Energy Matrix", energy_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # Visualize the energy matrix using opencv
+    def visualize_energy(energy_matrix):
+        """
+        Visualize the energy matrix using OpenCV.
+        :param energy_matrix: A 2D list representing the energy matrix.
+        """
+        # Normalize the energy matrix
+        energy_matrix = (energy_matrix - np.min(energy_matrix)) / (np.max(energy_matrix) - np.min(energy_matrix)) * 255
+        energy_matrix = energy_matrix.astype(np.uint8)
+        
+        # Create a grayscale image
+        energy_image = cv2.cvtColor(energy_matrix, cv2.COLOR_GRAY2BGR)
+        
+        # Display the image
+        cv2.imshow("Energy Matrix", energy_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+
+    def vert_inserted_seam_vals(self, seam):
+        """
+        Given a vertical seam (list of column indices), return the pixel values (RGB) of the inserted seam.
+        """
+        height, width = self.picture.shape[:2]
+        inserted_seam_vals = np.zeros((height, 3), dtype=np.uint8)
+        for i in range(height):
+            if seam[i] == 0:
+                # average itself and the right pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, :2], axis=0)
+            elif seam[i] == width - 1:
+                # average itself and the left pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, -2:], axis=0)
+            else:
+                # average itself, left and right pixel
+                inserted_seam_vals[i] = np.mean(self.picture[i, seam[i]-1:seam[i]+2], axis=0)
+        return inserted_seam_vals
 
 # Unit testing (required)
 if __name__ == "__main__":
@@ -388,15 +315,16 @@ if __name__ == "__main__":
     
 
     # deletion mask.
-    deletemask = np.load("deletepengin.npy")
-    deletemask = deletemask.astype(bool)
+    #deletemask = np.load("deletepengin.npy")
+    #deletemask = deletemask.astype(bool)
 
     # protection mask
-    protectionmask = np.load("protectpengin.npy")
-    protectionmask = protectionmask.astype(bool)
+    #protectionmask = np.load("protectpengin.npy")
+    #protectionmask = protectionmask.astype(bool)
 
 
-    file_path = "2peng.jpg"
+    file_path = "dolfin.jpg"
+    
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
     # Create a seam carver object.
@@ -407,12 +335,50 @@ if __name__ == "__main__":
     print("Width: ", width)
     print("Height: ", height)
 
-    seams = sc.find_multiple_vertical_seams(100)
+    # draw the energy matrix
+    #visualize_energy(sc.energy_matrix())
 
-    print("Seams: ", seams[0])
+    # draw the energy matrix with 20 vertical seams
+    '''seams = sc.find_multiple_vertical_seams(300)
+    new_picture = sc.picture
+    for seam in seams:
+        print("Seam: ", seam)
+    for seam in seams:
+        new_picture = sc.draw_vertical_seam(new_picture, seam)
+    cv2.imshow("Seams", new_picture)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    '''
+    
+    #seams = sc.find_multiple_vertical_seams(100)
 
-    sc.insert_vertical_seams(seams)
+    #print("Seams: ", seams[0])
 
-    new_file_path = "new_sample.png"
-    cv2.imwrite(new_file_path, sc.picture)
+    #sc.insert_vertical_seams(seams)
+    sc.insert_vertical_seams(sc.width() // 2)
 
+    cv2.imshow("Seams1", sc.picture)
+
+    # size of the new picture
+    print("New width: ", sc.picture.shape[1])
+    print("New height: ", sc.picture.shape[0])
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    sc.insert_vertical_seams(sc.width() // 2)
+
+    cv2.imshow("Seams2", sc.picture)
+
+    # size of the new picture
+    print("New width: ", sc.picture.shape[1])
+    print("New height: ", sc.picture.shape[0])
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # write the new picture to a file
+    cv2.imwrite("newfuji.png", sc.picture)
+
+
+
+
+    
