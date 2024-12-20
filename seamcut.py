@@ -116,38 +116,21 @@ class SeamCarver:
             # now we have all the seams, we can insert them back to the original picture
             for seam in seams:
                 # get the pixel values of the seam
-                self.picture = self.insert_single_vertical_seam(seam)
+                self.picture = self.insert_single_vertical_seam_opt(seam)
                 print("new picture shape: ", self.picture.shape)
 
             return self.picture
-
-    def insert_single_vertical_seam(self, seam):
-        # expand size by 1 col
-        print("input picture shape: ", self.picture.shape)
+    
+    def insert_single_vertical_seam_opt(self, seam):
         new_picture = np.zeros((self.height(), self.width() + 1, 3), dtype=np.uint8)
-        print("new picture shape: ", new_picture.shape)
         seam_vals = self.vert_inserted_seam_vals(seam)
 
         for row in range(self.height()):
             seam_pos = seam[row]
-            for col in range(seam_pos):
-                new_picture[row, col] = self.picture[row, col]
+            new_picture[row, :seam_pos] = self.picture[row, :seam_pos]
             new_picture[row, seam_pos] = seam_vals[row]
-            for col in range(seam_pos, self.width()):
-                new_picture[row, col + 1] = self.picture[row, col]
-        print("returning new picture shape: ", new_picture.shape)
+            new_picture[row, seam_pos + 1:] = self.picture[row, seam_pos:]
         return new_picture
-
-    '''
-    def find_multiple_horizontal_seams(self, num_seams):
-        # just transpose the picture and call find_multiple_vertical_seams
-        transposed_picture = self.picture.transpose(1, 0, 2)
-        self.picture = transposed_picture
-        seams = self.find_multiple_vertical_seams(transposed_picture, num_seams)
-        # insert the seams
-        self.insert_vertical_seams(seams)
-        # restore the original picture by transposing it back
-        self.picture = self.picture.transpose(1, 0, 2) ''' 
        
     def draw_vertical_seam(self, picture, seam):
         """
@@ -335,39 +318,9 @@ if __name__ == "__main__":
     print("Width: ", width)
     print("Height: ", height)
 
-    # draw the energy matrix
-    #visualize_energy(sc.energy_matrix())
-
-    # draw the energy matrix with 20 vertical seams
-    '''seams = sc.find_multiple_vertical_seams(300)
-    new_picture = sc.picture
-    for seam in seams:
-        print("Seam: ", seam)
-    for seam in seams:
-        new_picture = sc.draw_vertical_seam(new_picture, seam)
-    cv2.imshow("Seams", new_picture)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    '''
-    
-    #seams = sc.find_multiple_vertical_seams(100)
-
-    #print("Seams: ", seams[0])
-
-    #sc.insert_vertical_seams(seams)
-    sc.insert_vertical_seams(sc.width() // 2)
+    sc.insert_vertical_seams(100)
 
     cv2.imshow("Seams1", sc.picture)
-
-    # size of the new picture
-    print("New width: ", sc.picture.shape[1])
-    print("New height: ", sc.picture.shape[0])
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    sc.insert_vertical_seams(sc.width() // 2)
-
-    cv2.imshow("Seams2", sc.picture)
 
     # size of the new picture
     print("New width: ", sc.picture.shape[1])
