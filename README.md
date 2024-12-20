@@ -1,14 +1,10 @@
-# seam-carving
-Implementation of seam carving algorithm following the paper 'Seam Carving for Content-Aware Image Resizing' by Avidan and Shamir.
-
-https://perso.crans.org/frenoy/matlab2012/seamcarving.pdf
-
-results of running this on broadway tower
-![download (4)](https://github.com/user-attachments/assets/00ee6a46-7a5c-4927-b0f6-d6f9bca5d842)
+# Seam Carving for CAIR (Content Aware Image Resizing)
+Implementation of a seam carving algorithm using the methodology described in ['Seam Carving for Content-Aware Image Resizing'](https://perso.crans.org/frenoy/matlab2012/seamcarving.pdf) by Avidan and Shamir.
 
 watch my yt video on object removal:
 [https://studio.youtube.com/video/UZG52d_SKC0/edit](https://www.youtube.com/watch?v=UZG52d_SKC0)
 
+Deliverable List
 - [x] energy matrix
 - [x] seam finding (vertical)
 - [x] seam finding (horizontal)
