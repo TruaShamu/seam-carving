@@ -216,7 +216,7 @@ class SeamCarver:
             new_picture = self.draw_vertical_seam(self.picture, seam)
             
             # write the image to {count}.png
-            cv2.imwrite(f"{count}.png", new_picture)
+            #cv2.imwrite(f"{count}.png", new_picture)
             count += 1
             if (maskRemoved is not None):
                 maskRemoved = self.remove_vertical_seam(maskRemoved, seam)
@@ -298,15 +298,15 @@ if __name__ == "__main__":
     
 
     # deletion mask.
-    #deletemask = np.load("deletepengin.npy")
-    #deletemask = deletemask.astype(bool)
+    deletemask = np.load("deletepengin.npy")
+    deletemask = deletemask.astype(bool)
 
     # protection mask
-    #protectionmask = np.load("protectpengin.npy")
-    #protectionmask = protectionmask.astype(bool)
+    protectionmask = np.load("protectpengin.npy")
+    protectionmask = protectionmask.astype(bool)
 
 
-    file_path = "dolfin.jpg"
+    file_path = "2peng.jpg"
     
     picture = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
@@ -318,7 +318,10 @@ if __name__ == "__main__":
     print("Width: ", width)
     print("Height: ", height)
 
-    sc.insert_vertical_seams(100)
+    sc.resize(430, 727, deletemask, protectionmask)
+
+
+
 
     cv2.imshow("Seams1", sc.picture)
 
@@ -329,7 +332,7 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
 
     # write the new picture to a file
-    cv2.imwrite("newfuji.png", sc.picture)
+    cv2.imwrite("lincoln-park-new.png", sc.picture)
 
 
 

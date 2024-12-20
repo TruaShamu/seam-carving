@@ -33,4 +33,10 @@ Project limitations:
 3. No transport map for optimized seam removal order.
 4. No poisson solver.
 
-todo: theres a bug, the last batch for widening needs to be limited to the number of seams remaining to add.
+Demo results:
+
+|Item            | Before| After  |
+|-------------   |-------|--------|
+| Seam Removal   | ![before](https://i.ibb.co/SKJs7kW/lincoln-park.jpg)| ![after](https://i.ibb.co/BgTYM8z/lincoln-park-new.png)|
+| Object Removal | ![before](https://i.ibb.co/PG1LZ45/2peng.jpg)       | ![after](https://i.ibb.co/NSz7nB9/lincoln-park-new.png)       |
+| Seam Insertion | ![before](https://i.ibb.co/0Z27fkG/zen-garden1.jpg)       | ![after](https://i.ibb.co/dMWG9gW/zengarden.png)       |
